@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bass Tuner — Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:       #0a0a0a;
+    --surface:  #111111;
+    --border:   #222222;
+    --accent:   #e8ff00;
+    --tuned:    #00ff88;
+    --sharp:    #ff4455;
+    --flat:     #4488ff;
+    --muted:    #444444;
+    --text:     #f0f0f0;
+    --subtext:  #888888;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2rem;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+  }
+
+  .logo span { color: var(--text); }
+
+  #status-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--muted);
+    display: inline-block;
+    margin-right: 8px;
+    transition: background 0.3s;
+  }
+  #status-dot.connected  { background: var(--tuned); box-shadow: 0 0 8px var(--tuned); }
+  #status-dot.error      { background: var(--sharp); }
+
+  #status-text { font-size: 0.75rem; color: var(--subtext); }
+
+  /* ── Grid principal ── */
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 1px;
+    background: var(--border);
+  }
+
+  .panel {
+    background: var(--surface);
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .panel-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--subtext);
+  }
+
+  /* ── Note Display ── */
+  #note-panel {
+    grid-column: 1;
+    grid-row: 1;
+    align-items: center;
+    justify-content: center;
+    min-height: 260px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  #note-panel::before {
+    content: '';
+    position: absolute;
+    width: 300px; height: 300px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(232,255,0,0.04) 0%, transparent 70%);
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+
+  #note-display {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 9rem;
+    line-height: 1;
+    color: var(--text);
+    text-align: center;
+    transition: color 0.2s, transform 0.15s;
+    letter-spacing: 0.05em;
+  }
+
+  #note-display.tuned  { color: var(--tuned); transform: scale(1.04); }
+  #note-display.sharp  { color: var(--sharp); }
+  #note-display.flat   { color: var(--flat); }
+
+  #note-display.flash {
+    animation: flash 0.15s ease-out;
+  }
+  @keyframes flash {
+    0%   { opacity: 0.4; }
+    100% { opacity: 1; }
+  }
+
+  #freq-display {
+    font-size: 1.4rem;
+    color: var(--subtext);
+    text-align: center;
+    letter-spacing: 0.08em;
+  }
+
+  #freq-display span { color: var(--accent); }
+
+  /* ── Tuning Meter ── */
+  #meter-panel {
+    grid-column: 2;
+    grid-row: 1;
+    justify-content: center;
+    min-height: 260px;
+  }
+
+  .meter-wrapper {
+    position: relative;
+    width: 100%;
+    height: 48px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  /* centro (afinado) */
+  .meter-center-line {
+    position: absolute;
+    left: 50%; top: 0; bottom: 0;
+    width: 2px;
+    background: var(--accent);
+    opacity: 0.4;
+    transform: translateX(-50%);
+    z-index: 2;
+  }
+
+  #meter-fill {
+    position: absolute;
+    height: 100%;
+    top: 0;
+    transition: left 0.15s ease-out, width 0.15s ease-out, background 0.2s;
+    border-radius: 2px;
+  }
+
+  #cents-label {
+    font-size: 2rem;
+    font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 0.08em;
+    text-align: center;
+    margin-top: 8px;
+  }
+
+  #tuning-status {
+    font-size: 0.75rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    text-align: center;
+    color: var(--subtext);
+    margin-top: 4px;
+  }
+
+  .meter-scale {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.6rem;
+    color: var(--muted);
+    margin-top: 6px;
+    padding: 0 2px;
+  }
+
+  /* ── History Chart ── */
+  #history-panel {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    min-height: 180px;
+  }
+
+  #history-canvas {
+    width: 100%;
+    height: 120px;
+    display: block;
+  }
+
+  /* ── Stats bar ── */
+  .stats-row {
+    display: flex;
+    gap: 32px;
+    flex-wrap: wrap;
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .stat-val {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.6rem;
+    color: var(--accent);
+    letter-spacing: 0.06em;
+  }
+
+  .stat-lbl {
+    font-size: 0.6rem;
+    color: var(--subtext);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  /* ── String indicators ── */
+  .strings-row {
+    display: flex;
+    gap: 12px;
+    margin-top: 8px;
+  }
+
+  .string-badge {
+    padding: 4px 12px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    font-size: 0.75rem;
+    color: var(--muted);
+    transition: all 0.2s;
+    letter-spacing: 0.08em;
+  }
+
+  .string-badge.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(232,255,0,0.07);
+  }
+
+  /* ── No signal overlay ── */
+  #no-signal {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,10,10,0.85);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    z-index: 100;
+    backdrop-filter: blur(4px);
+    transition: opacity 0.4s;
+  }
+
+  #no-signal.hidden { opacity: 0; pointer-events: none; }
+
+  .ns-icon {
+    font-size: 3rem;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.3; }
+    50%       { opacity: 1; }
+  }
+
+  .ns-text {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2rem;
+    letter-spacing: 0.15em;
+    color: var(--subtext);
+  }
+
+  .ns-sub {
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+  }
+</style>
+</head>
+<body>
+
+<div id="no-signal">
+  <div class="ns-icon">🎸</div>
+  <div class="ns-text">Aguardando Sinal</div>
+  <div class="ns-sub">Conectando ao backend...</div>
+</div>
+
+<header>
+  <div class="logo">Bass<span>Tuner</span></div>
+  <div>
+    <span id="status-dot"></span>
+    <span id="status-text">desconectado</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- Nota detectada -->
+  <div class="panel" id="note-panel">
+    <div class="panel-label">Nota Detectada</div>
+    <div id="note-display">—</div>
+    <div id="freq-display">— Hz &nbsp;|&nbsp; ref: <span id="ref-freq">—</span> Hz</div>
+    <div class="strings-row">
+      <div class="string-badge" id="str-E">E</div>
+      <div class="string-badge" id="str-A">A</div>
+      <div class="string-badge" id="str-D">D</div>
+      <div class="string-badge" id="str-G">G</div>
+    </div>
+  </div>
+
+  <!-- Medidor de afinação -->
+  <div class="panel" id="meter-panel">
+    <div class="panel-label">Medidor de Afinação</div>
+
+    <div>
+      <div class="meter-wrapper">
+        <div class="meter-center-line"></div>
+        <div id="meter-fill"></div>
+      </div>
+      <div class="meter-scale">
+        <span>-50¢</span><span>-25¢</span><span>0</span><span>+25¢</span><span>+50¢</span>
+      </div>
+    </div>
+
+    <div id="cents-label">+0.0¢</div>
+    <div id="tuning-status">—</div>
+
+    <div class="stats-row" style="margin-top:auto">
+      <div class="stat">
+        <div class="stat-val" id="stat-total">0</div>
+        <div class="stat-lbl">Leituras</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val" id="stat-tuned">0%</div>
+        <div class="stat-lbl">Afinadas</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val" id="stat-last-note">—</div>
+        <div class="stat-lbl">Última</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Histórico de cents -->
+  <div class="panel" id="history-panel">
+    <div class="panel-label">Histórico de Desvio (cents) — últimas 60 leituras</div>
+    <canvas id="history-canvas"></canvas>
+  </div>
+
+</main>
+
+<script>
+// ─── Config ──────────────────────────────────────────────────────────────────
+const WS_URL = "ws://localhost:8000/ws";
+
+// ─── Estado ──────────────────────────────────────────────────────────────────
+let history    = [];
+let totalReads = 0;
+let tunedReads = 0;
+let ws         = null;
+let reconnectTimer = null;
+
+// ─── String detection ────────────────────────────────────────────────────────
+function detectString(note) {
+  if (!note) return null;
+  const n = note.replace(/\d/g, '').toUpperCase();
+  if (['E'].includes(n)) return 'E';
+  if (['A', 'A#', 'BB'].includes(n)) return 'A';
+  if (['D', 'D#', 'EB'].includes(n)) return 'D';
+  if (['G', 'G#', 'AB'].includes(n)) return 'G';
+  return null;
+}
+
+// ─── Meter update ─────────────────────────────────────────────────────────────
+function updateMeter(cents) {
+  const fill   = document.getElementById('meter-fill');
+  const clamped = Math.max(-50, Math.min(50, cents));
+  const pct     = (clamped + 50) / 100;  // 0→1, 0.5 = centro
+  const center  = 50;                    // %
+  const halfW   = Math.abs(pct - 0.5) * 100; // largura de metade da barra
+
+  let color;
+  if (Math.abs(cents) <= 5)       color = 'var(--tuned)';
+  else if (Math.abs(cents) <= 20) color = 'var(--accent)';
+  else if (cents > 0)             color = 'var(--sharp)';
+  else                            color = 'var(--flat)';
+
+  if (cents >= 0) {
+    fill.style.left  = center + '%';
+    fill.style.width = halfW + '%';
+  } else {
+    fill.style.left  = (center - halfW) + '%';
+    fill.style.width = halfW + '%';
+  }
+  fill.style.background = color;
+}
+
+// ─── Canvas chart ─────────────────────────────────────────────────────────────
+function drawChart() {
+  const canvas = document.getElementById('history-canvas');
+  const dpr    = window.devicePixelRatio || 1;
+  const rect   = canvas.getBoundingClientRect();
+  canvas.width  = rect.width  * dpr;
+  canvas.height = rect.height * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = rect.height;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Grid
+  ctx.strokeStyle = '#1a1a1a';
+  ctx.lineWidth   = 1;
+  [-50,-25,0,25,50].forEach(v => {
+    const y = H/2 - (v / 50) * (H/2 - 8);
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  });
+
+  // Centro
+  ctx.strokeStyle = 'rgba(232,255,0,0.25)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(0, H/2); ctx.lineTo(W, H/2); ctx.stroke();
+
+  if (history.length < 2) return;
+
+  // Linha de cents
+  ctx.lineWidth   = 2;
+  ctx.strokeStyle = 'var(--accent)';
+  ctx.beginPath();
+  history.forEach((d, i) => {
+    const x = (i / (history.length - 1)) * W;
+    const y = H/2 - (d.cents / 50) * (H/2 - 8);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Pontos coloridos
+  history.forEach((d, i) => {
+    const x = (i / (history.length - 1)) * W;
+    const y = H/2 - (d.cents / 50) * (H/2 - 8);
+    ctx.beginPath();
+    ctx.arc(x, y, 3, 0, Math.PI * 2);
+    ctx.fillStyle = Math.abs(d.cents) <= 5 ? 'var(--tuned)' :
+                    d.cents > 0            ? 'var(--sharp)' : 'var(--flat)';
+    ctx.fill();
+  });
+}
+
+// ─── Atualiza UI ─────────────────────────────────────────────────────────────
+function updateUI(data) {
+  totalReads++;
+  if (data.tuning_status === 'afinado') tunedReads++;
+  history.push(data);
+  if (history.length > 60) history.shift();
+
+  // Nota
+  const noteEl = document.getElementById('note-display');
+  noteEl.textContent = data.note || '—';
+  noteEl.className   = '';
+  void noteEl.offsetWidth;   // força reflow para reiniciar animação
+  noteEl.classList.add('flash', data.tuning_status === 'afinado' ? 'tuned' :
+                                 data.tuning_status === 'agudo'   ? 'sharp' : 'flat');
+
+  // Frequências
+  document.getElementById('freq-display').innerHTML =
+    `<span>${data.detected_freq} Hz</span> &nbsp;|&nbsp; ref: <span>${data.ref_freq}</span> Hz`;
+
+  // Meter
+  updateMeter(data.cents);
+  document.getElementById('cents-label').textContent =
+    (data.cents >= 0 ? '+' : '') + data.cents.toFixed(1) + '¢';
+
+  const statusMap = { afinado: '✓ AFINADO', agudo: '▲ MUITO AGUDO', grave: '▼ MUITO GRAVE' };
+  const statusEl  = document.getElementById('tuning-status');
+  statusEl.textContent = statusMap[data.tuning_status] || data.tuning_status;
+  statusEl.style.color = data.tuning_status === 'afinado' ? 'var(--tuned)' :
+                          data.tuning_status === 'agudo'   ? 'var(--sharp)' : 'var(--flat)';
+
+  // Strings
+  ['E','A','D','G'].forEach(s => {
+    document.getElementById('str-'+s).classList.remove('active');
+  });
+  const str = detectString(data.note);
+  if (str) document.getElementById('str-'+str)?.classList.add('active');
+
+  // Stats
+  document.getElementById('stat-total').textContent = totalReads;
+  document.getElementById('stat-tuned').textContent =
+    Math.round((tunedReads / totalReads) * 100) + '%';
+  document.getElementById('stat-last-note').textContent = data.note || '—';
+
+  drawChart();
+
+  // Esconde overlay
+  document.getElementById('no-signal').classList.add('hidden');
+}
+
+// ─── WebSocket ────────────────────────────────────────────────────────────────
+function connect() {
+  const dot  = document.getElementById('status-dot');
+  const text = document.getElementById('status-text');
+
+  ws = new WebSocket(WS_URL);
+
+  ws.onopen = () => {
+    dot.className  = 'connected';
+    text.textContent = 'conectado';
+    document.querySelector('.ns-sub').textContent = 'Aguardando sinal do contrabaixo...';
+    clearTimeout(reconnectTimer);
+  };
+
+  ws.onmessage = (e) => {
+    try { updateUI(JSON.parse(e.data)); }
+    catch {}
+  };
+
+  ws.onclose = ws.onerror = () => {
+    dot.className  = 'error';
+    text.textContent = 'reconectando...';
+    document.getElementById('no-signal').classList.remove('hidden');
+    reconnectTimer = setTimeout(connect, 3000);
+  };
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+window.addEventListener('resize', drawChart);
+connect();
+drawChart();
+</script>
+</body>
+</html>
