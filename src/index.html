@@ -17,6 +17,8 @@
     --muted:    #444444;
     --text:     #f0f0f0;
     --subtext:  #888888;
+    --v1:       #ff6b35;
+    --v2:       #00d4ff;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -45,7 +47,6 @@
     letter-spacing: 0.12em;
     color: var(--accent);
   }
-
   .logo span { color: var(--text); }
 
   #status-dot {
@@ -56,9 +57,8 @@
     margin-right: 8px;
     transition: background 0.3s;
   }
-  #status-dot.connected  { background: var(--tuned); box-shadow: 0 0 8px var(--tuned); }
-  #status-dot.error      { background: var(--sharp); }
-
+  #status-dot.connected { background: var(--tuned); box-shadow: 0 0 8px var(--tuned); }
+  #status-dot.error     { background: var(--sharp); }
   #status-text { font-size: 0.75rem; color: var(--subtext); }
 
   /* ── Grid principal ── */
@@ -66,7 +66,7 @@
     flex: 1;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto auto;
+    grid-template-rows: auto auto auto;
     gap: 1px;
     background: var(--border);
   }
@@ -118,13 +118,11 @@
     letter-spacing: 0.05em;
   }
 
-  #note-display.tuned  { color: var(--tuned); transform: scale(1.04); }
-  #note-display.sharp  { color: var(--sharp); }
-  #note-display.flat   { color: var(--flat); }
+  #note-display.tuned { color: var(--tuned); transform: scale(1.04); }
+  #note-display.sharp { color: var(--sharp); }
+  #note-display.flat  { color: var(--flat); }
+  #note-display.flash { animation: flash 0.15s ease-out; }
 
-  #note-display.flash {
-    animation: flash 0.15s ease-out;
-  }
   @keyframes flash {
     0%   { opacity: 0.4; }
     100% { opacity: 1; }
@@ -136,7 +134,6 @@
     text-align: center;
     letter-spacing: 0.08em;
   }
-
   #freq-display span { color: var(--accent); }
 
   /* ── Tuning Meter ── */
@@ -157,7 +154,6 @@
     overflow: hidden;
   }
 
-  /* centro (afinado) */
   .meter-center-line {
     position: absolute;
     left: 50%; top: 0; bottom: 0;
@@ -202,31 +198,8 @@
     padding: 0 2px;
   }
 
-  /* ── History Chart ── */
-  #history-panel {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    min-height: 180px;
-  }
-
-  #history-canvas {
-    width: 100%;
-    height: 120px;
-    display: block;
-  }
-
-  /* ── Stats bar ── */
-  .stats-row {
-    display: flex;
-    gap: 32px;
-    flex-wrap: wrap;
-  }
-
-  .stat {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
+  .stats-row { display: flex; gap: 32px; flex-wrap: wrap; }
+  .stat { display: flex; flex-direction: column; gap: 4px; }
 
   .stat-val {
     font-family: 'Bebas Neue', sans-serif;
@@ -242,12 +215,7 @@
     text-transform: uppercase;
   }
 
-  /* ── String indicators ── */
-  .strings-row {
-    display: flex;
-    gap: 12px;
-    margin-top: 8px;
-  }
+  .strings-row { display: flex; gap: 12px; margin-top: 8px; }
 
   .string-badge {
     padding: 4px 12px;
@@ -263,6 +231,78 @@
     border-color: var(--accent);
     color: var(--accent);
     background: rgba(232,255,0,0.07);
+  }
+
+  /* ── History Chart ── */
+  #history-panel {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    min-height: 180px;
+  }
+
+  #history-canvas {
+    width: 100%;
+    height: 120px;
+    display: block;
+  }
+
+  /* ── Performance Panel ── */
+  #perf-panel {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    min-height: 240px;
+    gap: 20px;
+  }
+
+  .perf-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .legend { display: flex; gap: 20px; align-items: center; }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    color: var(--subtext);
+  }
+
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+  #perf-canvas {
+    width: 100%;
+    height: 140px;
+    display: block;
+  }
+
+  .perf-stats {
+    display: flex;
+    gap: 40px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+
+  .perf-stat { display: flex; flex-direction: column; gap: 4px; }
+
+  .perf-stat-val {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.4rem;
+    letter-spacing: 0.06em;
+  }
+  .perf-stat-val.v1 { color: var(--v1); }
+  .perf-stat-val.v2 { color: var(--v2); }
+
+  .perf-stat-lbl {
+    font-size: 0.58rem;
+    color: var(--subtext);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
   }
 
   /* ── No signal overlay ── */
@@ -282,10 +322,7 @@
 
   #no-signal.hidden { opacity: 0; pointer-events: none; }
 
-  .ns-icon {
-    font-size: 3rem;
-    animation: pulse 2s ease-in-out infinite;
-  }
+  .ns-icon { font-size: 3rem; animation: pulse 2s ease-in-out infinite; }
 
   @keyframes pulse {
     0%, 100% { opacity: 0.3; }
@@ -299,11 +336,7 @@
     color: var(--subtext);
   }
 
-  .ns-sub {
-    font-size: 0.7rem;
-    color: var(--muted);
-    letter-spacing: 0.15em;
-  }
+  .ns-sub { font-size: 0.7rem; color: var(--muted); letter-spacing: 0.15em; }
 </style>
 </head>
 <body>
@@ -340,7 +373,6 @@
   <!-- Medidor de afinação -->
   <div class="panel" id="meter-panel">
     <div class="panel-label">Medidor de Afinação</div>
-
     <div>
       <div class="meter-wrapper">
         <div class="meter-center-line"></div>
@@ -350,10 +382,8 @@
         <span>-50¢</span><span>-25¢</span><span>0</span><span>+25¢</span><span>+50¢</span>
       </div>
     </div>
-
     <div id="cents-label">+0.0¢</div>
     <div id="tuning-status">—</div>
-
     <div class="stats-row" style="margin-top:auto">
       <div class="stat">
         <div class="stat-val" id="stat-total">0</div>
@@ -376,6 +406,52 @@
     <canvas id="history-canvas"></canvas>
   </div>
 
+  <!-- Painel de Performance — Análise de Algoritmos -->
+  <div class="panel" id="perf-panel">
+    <div class="perf-header">
+      <div class="panel-label">Performance de Buffer — Análise Comparativa (últimas 100 leituras)</div>
+      <div class="legend">
+        <div class="legend-item">
+          <div class="legend-dot" style="background:var(--v1)"></div>
+          V1 · Array O(n)
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:var(--v2)"></div>
+          V2 · Ring Buffer O(1)
+        </div>
+      </div>
+    </div>
+
+    <canvas id="perf-canvas"></canvas>
+
+    <div class="perf-stats">
+      <div class="perf-stat">
+        <div class="perf-stat-val v1" id="v1-last">— µs</div>
+        <div class="perf-stat-lbl">V1 última latência</div>
+      </div>
+      <div class="perf-stat">
+        <div class="perf-stat-val v2" id="v2-last">— µs</div>
+        <div class="perf-stat-lbl">V2 última latência</div>
+      </div>
+      <div class="perf-stat">
+        <div class="perf-stat-val v1" id="v1-avg">— µs</div>
+        <div class="perf-stat-lbl">V1 média</div>
+      </div>
+      <div class="perf-stat">
+        <div class="perf-stat-val v2" id="v2-avg">— µs</div>
+        <div class="perf-stat-lbl">V2 média</div>
+      </div>
+      <div class="perf-stat">
+        <div class="perf-stat-val" id="speedup" style="color:var(--accent)">—×</div>
+        <div class="perf-stat-lbl">Speedup V2/V1</div>
+      </div>
+      <div class="perf-stat">
+        <div class="perf-stat-val" id="buf-n" style="color:var(--muted)">0</div>
+        <div class="perf-stat-lbl">N amostras</div>
+      </div>
+    </div>
+  </div>
+
 </main>
 
 <script>
@@ -383,17 +459,18 @@
 const WS_URL = "ws://localhost:8000/ws";
 
 // ─── Estado ──────────────────────────────────────────────────────────────────
-let history    = [];
-let totalReads = 0;
-let tunedReads = 0;
-let ws         = null;
+let history     = [];
+let perfHistory = [];
+let totalReads  = 0;
+let tunedReads  = 0;
+let ws          = null;
 let reconnectTimer = null;
 
 // ─── String detection ────────────────────────────────────────────────────────
 function detectString(note) {
   if (!note) return null;
   const n = note.replace(/\d/g, '').toUpperCase();
-  if (['E'].includes(n)) return 'E';
+  if (['E'].includes(n))             return 'E';
   if (['A', 'A#', 'BB'].includes(n)) return 'A';
   if (['D', 'D#', 'EB'].includes(n)) return 'D';
   if (['G', 'G#', 'AB'].includes(n)) return 'G';
@@ -402,11 +479,11 @@ function detectString(note) {
 
 // ─── Meter update ─────────────────────────────────────────────────────────────
 function updateMeter(cents) {
-  const fill   = document.getElementById('meter-fill');
+  const fill    = document.getElementById('meter-fill');
   const clamped = Math.max(-50, Math.min(50, cents));
-  const pct     = (clamped + 50) / 100;  // 0→1, 0.5 = centro
-  const center  = 50;                    // %
-  const halfW   = Math.abs(pct - 0.5) * 100; // largura de metade da barra
+  const pct     = (clamped + 50) / 100;
+  const center  = 50;
+  const halfW   = Math.abs(pct - 0.5) * 100;
 
   let color;
   if (Math.abs(cents) <= 5)       color = 'var(--tuned)';
@@ -424,7 +501,7 @@ function updateMeter(cents) {
   fill.style.background = color;
 }
 
-// ─── Canvas chart ─────────────────────────────────────────────────────────────
+// ─── Canvas: histórico de cents ───────────────────────────────────────────────
 function drawChart() {
   const canvas = document.getElementById('history-canvas');
   const dpr    = window.devicePixelRatio || 1;
@@ -437,7 +514,6 @@ function drawChart() {
 
   ctx.clearRect(0, 0, W, H);
 
-  // Grid
   ctx.strokeStyle = '#1a1a1a';
   ctx.lineWidth   = 1;
   [-50,-25,0,25,50].forEach(v => {
@@ -445,14 +521,12 @@ function drawChart() {
     ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
   });
 
-  // Centro
   ctx.strokeStyle = 'rgba(232,255,0,0.25)';
   ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.moveTo(0, H/2); ctx.lineTo(W, H/2); ctx.stroke();
 
   if (history.length < 2) return;
 
-  // Linha de cents
   ctx.lineWidth   = 2;
   ctx.strokeStyle = 'var(--accent)';
   ctx.beginPath();
@@ -463,7 +537,6 @@ function drawChart() {
   });
   ctx.stroke();
 
-  // Pontos coloridos
   history.forEach((d, i) => {
     const x = (i / (history.length - 1)) * W;
     const y = H/2 - (d.cents / 50) * (H/2 - 8);
@@ -475,7 +548,103 @@ function drawChart() {
   });
 }
 
-// ─── Atualiza UI ─────────────────────────────────────────────────────────────
+// ─── Canvas: gráfico de performance ──────────────────────────────────────────
+function drawPerfChart() {
+  const canvas = document.getElementById('perf-canvas');
+  const dpr    = window.devicePixelRatio || 1;
+  const rect   = canvas.getBoundingClientRect();
+  canvas.width  = rect.width  * dpr;
+  canvas.height = rect.height * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = rect.height;
+  const PAD = 24;
+
+  ctx.clearRect(0, 0, W, H);
+
+  if (perfHistory.length < 2) {
+    ctx.fillStyle = 'var(--muted)';
+    ctx.font = '12px Space Mono, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('Aguardando dados de performance...', W / 2, H / 2);
+    return;
+  }
+
+  // Escala dinâmica — eixo Y vai até o maior valor de V1
+  const maxLat = Math.max(...perfHistory.map(d => d.v1_lat_us), 1);
+  const scaleY = (val) => H - PAD - ((val / maxLat) * (H - PAD * 2));
+
+  // Grid horizontal
+  ctx.strokeStyle = '#1a1a1a';
+  ctx.lineWidth   = 1;
+  [0, 0.25, 0.5, 0.75, 1].forEach(f => {
+    const y = H - PAD - f * (H - PAD * 2);
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    ctx.fillStyle = 'var(--muted)';
+    ctx.font = '9px Space Mono, monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(Math.round(maxLat * f) + 'µs', 2, y - 2);
+  });
+
+  const pts = perfHistory.length;
+
+  // Linha V1 — laranja (O(n))
+  ctx.lineWidth   = 2;
+  ctx.strokeStyle = 'var(--v1)';
+  ctx.beginPath();
+  perfHistory.forEach((d, i) => {
+    const x = (i / (pts - 1)) * W;
+    const y = scaleY(d.v1_lat_us);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Linha V2 — azul (O(1))
+  ctx.strokeStyle = 'var(--v2)';
+  ctx.beginPath();
+  perfHistory.forEach((d, i) => {
+    const x = (i / (pts - 1)) * W;
+    const y = scaleY(d.v2_lat_us);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Pontos V1
+  perfHistory.forEach((d, i) => {
+    const x = (i / (pts - 1)) * W;
+    ctx.beginPath();
+    ctx.arc(x, scaleY(d.v1_lat_us), 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = 'var(--v1)';
+    ctx.fill();
+  });
+
+  // Pontos V2
+  perfHistory.forEach((d, i) => {
+    const x = (i / (pts - 1)) * W;
+    ctx.beginPath();
+    ctx.arc(x, scaleY(d.v2_lat_us), 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = 'var(--v2)';
+    ctx.fill();
+  });
+}
+
+// ─── Atualiza stats de performance ───────────────────────────────────────────
+function updatePerfStats() {
+  if (perfHistory.length === 0) return;
+  const last    = perfHistory[perfHistory.length - 1];
+  const v1Avg   = perfHistory.reduce((s, d) => s + d.v1_lat_us, 0) / perfHistory.length;
+  const v2Avg   = perfHistory.reduce((s, d) => s + d.v2_lat_us, 0) / perfHistory.length;
+  const speedup = v2Avg > 0 ? (v1Avg / v2Avg).toFixed(1) : '—';
+
+  document.getElementById('v1-last').textContent  = last.v1_lat_us + ' µs';
+  document.getElementById('v2-last').textContent  = last.v2_lat_us + ' µs';
+  document.getElementById('v1-avg').textContent   = Math.round(v1Avg) + ' µs';
+  document.getElementById('v2-avg').textContent   = Math.round(v2Avg) + ' µs';
+  document.getElementById('speedup').textContent  = speedup + '×';
+  document.getElementById('buf-n').textContent    = last.n;
+}
+
+// ─── Atualiza UI completa ─────────────────────────────────────────────────────
 function updateUI(data) {
   totalReads++;
   if (data.tuning_status === 'afinado') tunedReads++;
@@ -506,9 +675,7 @@ function updateUI(data) {
                           data.tuning_status === 'agudo'   ? 'var(--sharp)' : 'var(--flat)';
 
   // Strings
-  ['E','A','D','G'].forEach(s => {
-    document.getElementById('str-'+s).classList.remove('active');
-  });
+  ['E','A','D','G'].forEach(s => document.getElementById('str-'+s).classList.remove('active'));
   const str = detectString(data.note);
   if (str) document.getElementById('str-'+str)?.classList.add('active');
 
@@ -520,7 +687,14 @@ function updateUI(data) {
 
   drawChart();
 
-  // Esconde overlay
+  // Performance (presente quando o firmware envia v1_naive/v2_ring)
+  if (data.perf) {
+    perfHistory.push(data.perf);
+    if (perfHistory.length > 100) perfHistory.shift();
+    drawPerfChart();
+    updatePerfStats();
+  }
+
   document.getElementById('no-signal').classList.add('hidden');
 }
 
@@ -532,19 +706,18 @@ function connect() {
   ws = new WebSocket(WS_URL);
 
   ws.onopen = () => {
-    dot.className  = 'connected';
+    dot.className    = 'connected';
     text.textContent = 'conectado';
     document.querySelector('.ns-sub').textContent = 'Aguardando sinal do contrabaixo...';
     clearTimeout(reconnectTimer);
   };
 
   ws.onmessage = (e) => {
-    try { updateUI(JSON.parse(e.data)); }
-    catch {}
+    try { updateUI(JSON.parse(e.data)); } catch {}
   };
 
   ws.onclose = ws.onerror = () => {
-    dot.className  = 'error';
+    dot.className    = 'error';
     text.textContent = 'reconectando...';
     document.getElementById('no-signal').classList.remove('hidden');
     reconnectTimer = setTimeout(connect, 3000);
@@ -552,9 +725,10 @@ function connect() {
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
-window.addEventListener('resize', drawChart);
+window.addEventListener('resize', () => { drawChart(); drawPerfChart(); });
 connect();
 drawChart();
+drawPerfChart();
 </script>
 </body>
 </html>

@@ -3,6 +3,7 @@ backend/main.py
 FastAPI + MQTT + WebSocket
 - Assina bass/pitch no broker Mosquitto
 - Mapeia frequência → nota musical (com desvio em cents)
+- Recebe e repassa métricas de performance das Vertentes 1 e 2
 - Transmite resultado via WebSocket para o dashboard
 """
 
@@ -16,7 +17,6 @@ from typing import Optional
 import paho.mqtt.client as mqtt
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 
 # ─── Configurações ────────────────────────────────────────────────────────────
 MQTT_BROKER = "localhost"
@@ -49,10 +49,6 @@ for name, freq in BASS_NOTES:
 
 # ─── Mapeamento de frequência → nota ─────────────────────────────────────────
 def freq_to_note(freq: float) -> dict:
-    """
-    Retorna a nota mais próxima e o desvio em cents.
-    Cents: +50 → muito agudo | -50 → muito grave | 0 → afinado
-    """
     best_name  = "?"
     best_freq  = 0.0
     best_cents = float("inf")
@@ -64,7 +60,6 @@ def freq_to_note(freq: float) -> dict:
             best_name  = name
             best_freq  = ref_freq
 
-    # Status de afinação
     if abs(best_cents) <= 5:
         tuning_status = "afinado"
     elif best_cents > 5:
@@ -104,9 +99,10 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-# ─── Estado global (último pitch recebido) ────────────────────────────────────
+# ─── Estado global ────────────────────────────────────────────────────────────
 latest_pitch: Optional[dict] = None
-pitch_history: list[dict]    = []   # guarda os últimos 60 registros
+pitch_history: list[dict]    = []   # últimas 60 leituras de pitch
+perf_history: list[dict]     = []   # histórico de métricas de performance
 
 # ─── MQTT callbacks ───────────────────────────────────────────────────────────
 def on_connect(client, userdata, flags, rc):
@@ -117,7 +113,7 @@ def on_connect(client, userdata, flags, rc):
         print(f"❌ Falha ao conectar MQTT (rc={rc})")
 
 def on_message(client, userdata, msg):
-    global latest_pitch, pitch_history
+    global latest_pitch, pitch_history, perf_history
     try:
         payload = json.loads(msg.payload.decode())
         freq    = float(payload.get("freq", 0))
@@ -129,26 +125,46 @@ def on_message(client, userdata, msg):
         note_info["ts"]        = time.time()
         note_info["device_id"] = payload.get("device_id", "esp32")
 
+        # ── Métricas de performance das duas vertentes ──
+        v1 = payload.get("v1_naive", {})
+        v2 = payload.get("v2_ring",  {})
+
+        perf = {
+            "ts":            note_info["ts"],
+            "n":             v1.get("n", 0),
+            "v1_lat_us":     v1.get("lat_us",  0),
+            "v2_lat_us":     v2.get("lat_us",  0),
+            "v1_heap_delta": v1.get("heap_after", 0) - v1.get("heap_before", 0),
+            "v2_heap_delta": v2.get("heap_after", 0) - v2.get("heap_before", 0),
+        }
+
+        note_info["perf"] = perf
         latest_pitch = note_info
 
-        # Mantém histórico das últimas 60 leituras
         pitch_history.append(note_info)
         if len(pitch_history) > 60:
             pitch_history.pop(0)
 
-        # Dispara broadcast assíncrono para os WebSockets
+        perf_history.append(perf)
+        if len(perf_history) > 200:
+            perf_history.pop(0)
+
         asyncio.run_coroutine_threadsafe(
             manager.broadcast(note_info),
             app.state.loop
         )
 
-        print(f"🎸 {note_info['note']} | {freq:.1f} Hz | {note_info['cents']:+.1f} cents | {note_info['tuning_status']}")
+        print(
+            f"🎸 {note_info['note']} | {freq:.1f} Hz | {note_info['cents']:+.1f}¢ "
+            f"| V1: {perf['v1_lat_us']} µs | V2: {perf['v2_lat_us']} µs "
+            f"| n={perf['n']}"
+        )
 
     except Exception as e:
         print(f"Erro ao processar mensagem MQTT: {e}")
 
 # ─── Startup / Shutdown ───────────────────────────────────────────────────────
-mqtt_client = mqtt.Client()
+mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1)
 mqtt_client.on_connect = on_connect
 mqtt_client.on_message = on_message
 
@@ -187,6 +203,11 @@ def get_latest():
 def get_history():
     """Retorna o histórico das últimas 60 leituras."""
     return {"count": len(pitch_history), "history": pitch_history}
+
+@app.get("/perf/history")
+def get_perf_history():
+    """Retorna o histórico das métricas de performance das duas vertentes."""
+    return {"count": len(perf_history), "history": perf_history}
 
 @app.get("/notes")
 def list_notes():
