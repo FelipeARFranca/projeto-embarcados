@@ -19,7 +19,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 # ─── Configurações ────────────────────────────────────────────────────────────
-MQTT_BROKER = "localhost"
+MQTT_BROKER = "172.26.68.211"
 MQTT_PORT   = 1883
 MQTT_TOPIC  = "bass/pitch"
 

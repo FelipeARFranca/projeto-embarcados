@@ -44,7 +44,7 @@ def send(client, freq, label=""):
     print(f"  → {freq:.2f} Hz  {label}")
 
 def connect_mqtt() -> mqtt.Client:
-    client = mqtt.Client()
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1)
     client.connect(MQTT_BROKER, MQTT_PORT, keepalive=60)
     client.loop_start()
     print(f"✅ Conectado ao broker {MQTT_BROKER}:{MQTT_PORT}\n")
