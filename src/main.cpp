@@ -4,19 +4,19 @@
 #include <arduinoFFT.h>
 #include <ArduinoJson.h>
 
-#define WIFI_SSID     "uaifai-tiradentes"
-#define WIFI_PASSWORD "bemvindoaocesar"
-#define MQTT_BROKER   "172.26.69.14"
-#define MQTT_PORT     1883
-#define MQTT_TOPIC    "bass/pitch"
-#define DEVICE_ID     "esp32-bass-01"
+#define WIFI_SSID        "uaifai-tiradentes"
+#define WIFI_PASSWORD    "bemvindoaocesar"
+#define MQTT_BROKER      "172.26.69.14"
+#define MQTT_PORT        1883
+#define MQTT_TOPIC       "bass/pitch"
+#define DEVICE_ID        "esp32-bass-01"
 
 #define ADC_PIN          34
 #define SAMPLE_RATE      8000
 #define SAMPLES          8192
 #define SAMPLE_PERIOD_US (1000000 / SAMPLE_RATE)
 #define MIN_FREQ         30.0f
-#define MAX_FREQ         400.0f
+#define MAX_FREQ         200.0f
 #define NOISE_FLOOR      50.0f
 #define SILENCE_THRESHOLD 60
 
@@ -29,11 +29,16 @@ ArduinoFFT<float> FFT = ArduinoFFT<float>(vReal, vImag, SAMPLES, SAMPLE_RATE);
 WiFiClient   wifiClient;
 PubSubClient mqttClient(wifiClient);
 
+// Queue que conecta vTaskAudio → vTaskMQTT (profundidade 5, payload = float)
+QueueHandle_t pitchQueue;
+
+// ─── Rede ─────────────────────────────────────────────────────────────────────
+
 void connectWiFi() {
   Serial.printf("Conectando ao Wi-Fi: %s", WIFI_SSID);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
+    vTaskDelay(pdMS_TO_TICKS(500));
     Serial.print(".");
   }
   Serial.printf("\nConectado! IP: %s\n", WiFi.localIP().toString().c_str());
@@ -46,12 +51,14 @@ void connectMQTT() {
       Serial.println(" OK");
     } else {
       Serial.printf(" Falhou (rc=%d). Tentando em 3s...\n", mqttClient.state());
-      delay(3000);
+      vTaskDelay(pdMS_TO_TICKS(3000));
     }
   }
 }
 
-// Retorna amplitude pico-a-pico do sinal (usado como gate de silêncio)
+// ─── Áudio / FFT ─────────────────────────────────────────────────────────────
+
+// Retorna amplitude pico-a-pico do sinal (gate de silêncio)
 int collectSamples() {
   int rawMin = 4095, rawMax = 0;
   uint32_t nextSample = micros();
@@ -98,7 +105,6 @@ float detectPitch() {
   if (halfBin >= binMin && vReal[halfBin] >= maxMag * 0.25f)
     peakBin = halfBin;
 
-  // Proteção contra acesso fora dos limites
   if (peakBin <= binMin || peakBin >= binMax)
     return (float)(peakBin * SAMPLE_RATE / SAMPLES);
 
@@ -112,7 +118,7 @@ float detectPitch() {
 
 void publishPitch(float freq) {
   StaticJsonDocument<128> doc;
-  doc["freq"]      = freq;         // atribuição direta, sem serialized()
+  doc["freq"]      = freq;
   doc["device_id"] = DEVICE_ID;
   doc["ts"]        = millis();
 
@@ -122,26 +128,53 @@ void publishPitch(float freq) {
   Serial.printf("Publicado: %s\n", buffer);
 }
 
+// ─── Tasks FreeRTOS ───────────────────────────────────────────────────────────
+
+// Core 1 — coleta amostras e detecta pitch; envia resultado pela queue
+void vTaskAudio(void *pvParameters) {
+  for (;;) {
+    float freq = detectPitch();
+    if (freq > 0) {
+      // Descarta se a queue estiver cheia (não bloqueia a coleta)
+      xQueueSend(pitchQueue, &freq, 0);
+    }
+    // collectSamples já consome ~1s; nenhum delay adicional necessário
+  }
+}
+
+// Core 0 — mantém WiFi/MQTT e publica cada frequência recebida da queue
+void vTaskMQTT(void *pvParameters) {
+  connectWiFi();
+  mqttClient.setServer(MQTT_BROKER, MQTT_PORT);
+  connectMQTT();
+
+  float freq;
+  for (;;) {
+    if (!mqttClient.connected()) connectMQTT();
+    mqttClient.loop();
+
+    // Aguarda até 100 ms por um novo pitch; enquanto isso o loop MQTT continua
+    if (xQueueReceive(pitchQueue, &freq, pdMS_TO_TICKS(100)) == pdTRUE) {
+      publishPitch(freq);
+    }
+  }
+}
+
+// ─── Setup ────────────────────────────────────────────────────────────────────
+
 void setup() {
   Serial.begin(115200);
   analogReadResolution(12);
   analogSetAttenuation(ADC_11db);
-  connectWiFi();
-  mqttClient.setServer(MQTT_BROKER, MQTT_PORT);
-  connectMQTT();
-  Serial.println("Sistema pronto.");
+
+  pitchQueue = xQueueCreate(5, sizeof(float));
+
+  // Prioridade 2 > 1 garante que o áudio não seja interrompido pelo MQTT
+  xTaskCreatePinnedToCore(vTaskMQTT,  "MQTT",  4096, NULL, 1, NULL, 0);
+  xTaskCreatePinnedToCore(vTaskAudio, "Audio", 4096, NULL, 2, NULL, 1);
 }
 
+// loop() não é usada — as tasks FreeRTOS assumem o controle
 void loop() {
-  if (!mqttClient.connected()) connectMQTT();
-  mqttClient.loop();
-
-  float pitch = detectPitch();
-
-  if (pitch > 0) {
-    publishPitch(pitch);
-  } else {
-    Serial.println("Sem sinal detectado.");
-  }
-  // sem delay() — coleta já consome ~1s
+  vTaskDelete(NULL);
 }
