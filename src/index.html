@@ -465,6 +465,19 @@ let totalReads  = 0;
 let tunedReads  = 0;
 let ws          = null;
 let reconnectTimer = null;
+let silenceTimer   = null;
+
+// ─── Silence (sem nota tocada) ────────────────────────────────────────────────
+function showSilence() {
+  document.getElementById('no-signal').classList.remove('hidden');
+  document.querySelector('.ns-sub').textContent = 'Aguardando nota do contrabaixo...';
+  document.getElementById('note-display').textContent = '—';
+  document.getElementById('freq-display').innerHTML = '— Hz &nbsp;|&nbsp; ref: <span>—</span> Hz';
+  document.getElementById('cents-label').textContent = '0.0¢';
+  document.getElementById('tuning-status').textContent = '—';
+  updateMeter(0);
+  ['E','A','D','G'].forEach(s => document.getElementById('str-'+s).classList.remove('active'));
+}
 
 // ─── String detection ────────────────────────────────────────────────────────
 function detectString(note) {
@@ -646,6 +659,8 @@ function updatePerfStats() {
 
 // ─── Atualiza UI completa ─────────────────────────────────────────────────────
 function updateUI(data) {
+  clearTimeout(silenceTimer);
+  silenceTimer = setTimeout(showSilence, 2500);
   totalReads++;
   if (data.tuning_status === 'afinado') tunedReads++;
   history.push(data);
